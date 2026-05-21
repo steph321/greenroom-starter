@@ -83,11 +83,79 @@ Ran `npx tsx scripts/audit-db.ts` against `data/greenroom.db`.
 - `lib/settlement/*`, template-driven markdown
 - Fixed expense-cap semantics for Mariana vs agent reads (Coastal Δ $720)
 
-### Next session prompts (planned)
+---
 
-1. "Implement `lib/ai/interpretDeal.ts` with Zod schema for DealInterpretation; flag BC2, BC6, BC9, Coastal Spell recoup ambiguity."
-2. "Extend dealMath for standard Vs; add `recoupStacking` enum; unit test Coastal Spell $11565 vs $12285."
-3. "Add Interpretation + Walkthrough tabs to settle page; block finalize when contradictions unresolved."
+## Phase 5 — Settlement confidence UI (2026-05-19)
+
+### Prompt (case study — Prompt 7 / Frontend Build)
+
+> Help me implement a polished settlement confidence review panel in this Next.js application.
+>
+> Requirements: operational software aesthetic, clean information hierarchy, easy to scan at 2am, warnings visually distinct, confidence indicators subtle but visible, explanation sections readable, preserve existing settlement workflow.
+>
+> Components I likely need: discrepancy cards, extracted deal terms, confidence badges, settlement breakdown, generated summary panel, warning banners. Prioritize clarity over flashy UI.
+
+### Outcome
+
+- `components/settlement/*` — `settlement-confidence-review.tsx`, `confidence-badge`, `warning-banner`, `discrepancy-cards`
+- `lib/ai/reviewState.ts` — client recompute on canon edits
+- Wired `app/shows/[id]/settle/page.tsx` — full panel for Vs; compact strip for flat/% gross
+- Coastal trust banner, dual recoup preview, confirm gate, walkthrough + agent copy
+- `scripts/db-reset.ts` — Windows-safe `npm run db:reset` (replaced `rm -f`)
+
+### Follow-up prompts (same session)
+
+> Explain the entire system again like I'm 5 — what each part does.
+
+> Yes — click-by-click walkthrough for Coastal Spell (Loom prep).
+
+> Did we solve what the problem wanted? (Senior PM / interview readiness review.)
+
+> PHASE 6 — Help me draft a 1–2 page PM memo (Prompt 8). Slice: AI-assisted settlement confidence review. Cover problem, slice choice, DB insights, philosophy, design, tradeoffs, cuts, AI risks, metrics, next. Tone: operational, no buzzwords.
+
+> PHASE 7 — Help me structure a 5–10 minute Loom (Prompt 9). Problem → slice → demo → cuts → AI judgment → next.
+
+> Loom prep — do I need to talk? What to point at / what to say (user unfamiliar with UI).
+
+> User shared Coastal settle screenshots — validated UI; corrected recoup labels (inside cap ≈ $12,285, before net ≈ $11,565).
+
+> Shorter Loom script (single flow; user reads aloud, doesn’t want to memorize).
+
+> What do I need to submit? (repo + memo export + Loom.)
+
+### Course corrections (human + AI)
+
+- Recoup stacking labels in coaching copy were wrong once; UI amounts are source of truth.
+- 404 on `/settle` — stale duplicate `npm run dev` / `.next` cache; fixed `db/index.ts` absolute DB path.
+
+---
+
+## Phase 6 — Memo (2026-05-19)
+
+### Prompt
+
+> Prompt 8 — Memo Drafting (full requirements in Phase 5 follow-up above).
+
+### Outcome
+
+- `docs/memo.md` — submission-ready PM memo (export to PDF/Notion for hiring contact)
+
+---
+
+## Phase 7 — Loom script (2026-05-19)
+
+### Prompt
+
+> Prompt 9 — Loom Script: 5–10 min, problem / slice / demo / cuts / AI realism / next. Concise, product-oriented, not over-rehearsed.
+
+### Outcome
+
+- `docs/loom-script.md` — timed beats, Coastal URL, pre-flight checklist
+- Iterated to ultra-short glance-card script for voiceover (~3 min)
+
+### Note
+
+User asked some coaching turns **off the record** (not logged verbatim) — ELI5 system explain, submission anxiety, voice-on-video preference.
 
 ---
 
