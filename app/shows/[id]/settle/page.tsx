@@ -2,7 +2,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
   ArrowLeft,
-  FileWarning,
   ArrowRight,
   Check,
   AlertTriangle,
@@ -19,16 +18,17 @@ import {
   CardHeader,
   CardTitle,
   CardDescription,
-  Field,
 } from "@/components/ui/card";
 import { StatusBadge, DealTypeBadge, PlainBadge } from "@/components/ui/badge";
 import { calculateSettlement } from "@/lib/dealMath";
+import { interpretDealSync } from "@/lib/ai/interpretDeal";
 import {
   formatMoney,
   formatShowDateFull,
 } from "@/lib/format";
 import type { Settlement, Recoup } from "@/db/schema";
 import { Logomark } from "@/components/brand/logo";
+import { SettlementConfidenceReview } from "@/components/settlement/settlement-confidence-review";
 
 const RECOUP_LABELS: Record<Recoup["category"], string> = {
   marketing: "Marketing",
@@ -70,13 +70,56 @@ export default async function SettlePage({
   });
   const grossSoFar = ticketSales.reduce((sum, t) => sum + t.gross, 0);
   const totalFees = ticketSales.reduce((sum, t) => sum + t.fees, 0);
-  const totalExpenses = expenses
-    .filter((e) => !e.absorbedByVenue)
-    .reduce((sum, e) => sum + e.amount, 0);
-
   const disputedRecoups = recoups.filter((r) => r.status === "disputed");
   const isDisputed = settlement?.status === "disputed" || settlement?.status === "revised" || !!settlement?.disputedAt;
   const disputedRecoupValue = disputedRecoups.reduce((s, r) => s + r.amount, 0);
+
+  const hospitalityTotal = expenses
+    .filter((e) => e.category === "hospitality")
+    .reduce((s, e) => s + e.amount, 0);
+  const marketingExpenseTotal = expenses
+    .filter((e) => e.category === "marketing" && !e.absorbedByVenue)
+    .reduce((s, e) => s + e.amount, 0);
+
+  const interpretation = interpretDealSync({
+    deal,
+    hospitalityExpenseTotal: hospitalityTotal,
+    marketingExpenseTotal,
+    hasDisputedSettlement: isDisputed,
+    positiveTmSignoff: Boolean(
+      settlement?.signoffText &&
+        settlement.status !== "disputed" &&
+        !settlement.disputedAt,
+    ),
+  });
+
+  const trustBanner =
+    show.id === "show_coastal_spell_dispute" && isDisputed
+      ? {
+          title: "Coastal Spell — recoup stacking dispute",
+          body: "Agent memo treats $900 marketing as outside the $2,500 expense cap; venue applied it inside cap. Confirm stacking before you re-issue the walkthrough — the gap is about $720 to artist.",
+        }
+      : isDisputed
+        ? {
+            title: "Settlement in dispute",
+            body: "Confirm deal interpretation and recoup lines match the agent memo before you finalize or re-send numbers.",
+          }
+        : null;
+
+  const reviewProps = {
+    artistName: artist?.name ?? "Artist",
+    showDate: formatShowDateFull(show.date),
+    venueName: data.venue?.name ?? "Venue",
+    deal,
+    interpretation,
+    grossBoxOffice: grossSoFar,
+    totalFees,
+    expenses,
+    recoups,
+    hospitalityCap: deal.hospitalityCap,
+    existingTotalToArtist: settlement?.totalToArtist ?? null,
+    trustBanner,
+  };
 
   return (
     <div className={`px-12 py-10 max-w-7xl ${isDisputed ? "bg-gradient-to-b from-rose-50/30 via-canvas to-canvas" : ""}`}>
@@ -128,18 +171,12 @@ export default async function SettlePage({
 
       <div className="space-y-6 mt-6">
         {!calc.supported ? (
-          <UnsupportedDeal
-            dealType={calc.dealType}
-            deal={deal}
-            existingSettlement={settlement}
-            grossSoFar={grossSoFar}
-            totalFees={totalFees}
-            totalExpenses={totalExpenses}
-            ticketCount={ticketSales.reduce((s, t) => s + (t.qty ?? 0), 0)}
-            expenseRowCount={expenses.length}
-          />
+          <SettlementConfidenceReview {...reviewProps} />
         ) : (
-          <SupportedSettlement calc={calc} existingSettlement={settlement} />
+          <>
+            <SettlementConfidenceReview compact {...reviewProps} />
+            <SupportedSettlement calc={calc} existingSettlement={settlement} />
+          </>
         )}
 
         {recoups.length > 0 && <RecoupsSection recoups={recoups} />}
@@ -352,136 +389,6 @@ function LifecycleBar({
         </div>
       </CardContent>
     </Card>
-  );
-}
-
-function UnsupportedDeal({
-  dealType,
-  deal,
-  existingSettlement,
-  grossSoFar,
-  totalFees,
-  totalExpenses,
-  ticketCount,
-  expenseRowCount,
-}: {
-  dealType: string;
-  deal: NonNullable<Awaited<ReturnType<typeof getShowById>>>["deal"];
-  existingSettlement: NonNullable<
-    Awaited<ReturnType<typeof getShowById>>
-  >["settlement"];
-  grossSoFar: number;
-  totalFees: number;
-  totalExpenses: number;
-  ticketCount: number;
-  expenseRowCount: number;
-}) {
-  const friendly: Record<string, string> = {
-    flat: "flat guarantee",
-    percentage_of_gross: "percentage of gross",
-    percentage_of_net: "percentage of net",
-    vs: "vs deal",
-    door: "door deal",
-  };
-
-  return (
-    <>
-      <Card accent="amber">
-        <CardContent className="py-12 text-center">
-          <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-amber-50 ring-1 ring-amber-200/80 mb-5">
-            <FileWarning className="h-5 w-5 text-amber-700" />
-          </div>
-          <h2 className="font-display text-[22px] font-medium text-ink-900 mb-2" style={{ letterSpacing: "-0.02em" }}>
-            The in-app tool can&apos;t settle a {friendly[dealType] ?? dealType} yet.
-          </h2>
-          <p className="text-[13px] text-ink-500 max-w-md mx-auto leading-relaxed">
-            Mariana would do this on a Google Sheet at 2am tonight. The inputs
-            are below — but the math doesn&apos;t happen here.
-          </p>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <div>
-            <CardTitle>What the system has</CardTitle>
-            <CardDescription>
-              The inputs Mariana would pull together to settle this show.
-              They&apos;re here — but disconnected from the deal terms.
-            </CardDescription>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-            <Field
-              label="Gross box office"
-              mono
-              value={formatMoney(grossSoFar)}
-            />
-            <Field label="Fees" mono value={formatMoney(totalFees)} />
-            <Field
-              label="Net box office"
-              mono
-              value={formatMoney(grossSoFar - totalFees)}
-            />
-          </div>
-
-          <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-5">
-            <Field label="Tickets sold" mono value={String(ticketCount)} />
-            <Field
-              label="Expenses (line items)"
-              mono
-              value={String(expenseRowCount)}
-            />
-            <Field
-              label="Expenses (passed through)"
-              mono
-              value={formatMoney(totalExpenses)}
-            />
-          </div>
-
-          {deal?.dealNotesFreetext && (
-            <div className="mt-6">
-              <div className="eyebrow text-[10px] text-ink-500 mb-2">
-                Deal notes (free text — what Mariana actually trusts)
-              </div>
-              <div className="text-[12.5px] text-ink-800 bg-canvas-soft rounded-lg p-4 ring-1 ring-ink-200/60 leading-relaxed">
-                {deal.dealNotesFreetext}
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {existingSettlement?.totalToArtist != null && (
-        <Card
-          accent={existingSettlement.status === "disputed" ? "rose" : "brand"}
-        >
-          <CardHeader>
-            <div>
-              <CardTitle>Actually settled (off-platform)</CardTitle>
-              <CardDescription>
-                Mariana ran this in a spreadsheet. Here&apos;s the result that
-                was logged back into Greenroom afterward.
-              </CardDescription>
-            </div>
-            {existingSettlement.status === "disputed" ? (
-              <PlainBadge variant="rose">Disputed</PlainBadge>
-            ) : (
-              <PlainBadge variant="brand">Signed</PlainBadge>
-            )}
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-baseline justify-between py-2">
-              <span className="text-[13px] text-ink-600">Total to artist</span>
-              <span className="text-[32px] font-mono tabular font-semibold text-ink-900" style={{ letterSpacing: "-0.02em" }}>
-                {formatMoney(existingSettlement.totalToArtist)}
-              </span>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-    </>
   );
 }
 

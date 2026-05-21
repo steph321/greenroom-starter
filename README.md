@@ -212,6 +212,20 @@ When you're done:
 
 Node.js isn't installed (or isn't on your PATH). Install from [nodejs.org](https://nodejs.org/), then restart your terminal.
 
+### Settle page 404, or only some routes work
+
+Often caused by **two `npm run dev` processes** (old one on 3000, new one on 3001) or a stale `.next` cache.
+
+1. Stop every dev server (Ctrl+C in all terminals running `npm run dev`).
+2. Windows — free port 3000: `netstat -ano | findstr :3000` then `taskkill /PID <pid> /F`
+3. Delete cache and reseed:
+   ```bash
+   npm run db:reset
+   ```
+   On Windows, remove `.next` in File Explorer or: `Remove-Item -Recurse -Force .next`
+4. Start once: `npm run dev` — use the URL it prints (usually `http://localhost:3000`).
+5. Coastal demo: `http://localhost:3000/shows/show_coastal_spell_dispute/settle`
+
 ### "Port 3000 is already in use"
 
 Something else is using port 3000. Two options:
