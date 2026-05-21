@@ -1,185 +1,262 @@
 # AI build logs — Greenroom case study
 
-This file documents how Cursor was used across the build.  
-**Rule:** Append a dated entry for each meaningful AI session (prompts, outcomes, course corrections).
+Official case-study prompts (1–7) and what they produced.  
+**Not logged:** memo, Loom, ELI5 walkthroughs, submission coaching, or other explain-only chats.
 
 ---
 
-## Day 0 — Planning & database audit (2026-05-19)
-
-### Context
-
-Chose slice: **AI Settlement Interpretation & Trust Layer**.  
-Read transcripts (Mariana, Diego, Marcus, Sarah), CEO memo, dispute thread.  
-Ran `npx tsx scripts/audit-db.ts` against `data/greenroom.db`.
-
-### Prompt (planning — Cursor/Claude)
-
-> Read the Greenroom case study brief and all data/transcripts/*.md. I'm picking the slice "AI Settlement Interpretation & Trust Layer" with 5 days of work. Explore the database for deliberate flaws (BC1–BC12, Coastal Spell). Produce a 5-day plan, database audit doc, and start ai-logs.md for prompt documentation.
-
-### Outcomes
-
-- Confirmed 12 planted breadcrumbs in `db/seed.ts` (BC1–BC12).
-- Live audit counts: 10 BC1, 21 BC3, 5 BC12 Daniel Hwang marketing disputes, etc.
-- **Action:** If `show_coastal_spell_dispute` missing, run `npm run db:reset`.
-- Created `docs/database-audit.md`, `docs/5-day-plan.md`, `scripts/audit-db.ts`.
-
----
-
-## Day 0b — Settlement system analysis (2026-05-19)
+## Prompt 1 — Repo / product understanding
 
 ### Prompt
 
-> Act like a senior staff product engineer. Analyze settlement workflow, data models, calculation logic, unsupported deal types, UX pain points, trust/ambiguity, prose vs structured conflicts. Map narrow AI opportunities. Do not suggest broad rewrites.
-
-### Outcomes
-
-- Full analysis written to **`docs/settlement-system-analysis.md`** (workflow diagram, dual engines, lifecycle gaps, Coastal Spell, Tier 1–3 AI scope).
-- Key finding: settlement UI is **read-only**; `calculation_json` unused; recoups never feed calculator.
-- Process log updated in `docs/process-log.md`.
-
-### Design decisions (human, not AI)
-
-- LLM for **extraction + contradiction detection** only; **deterministic code** for money.
-- Human confirmation gate before settlement finalization on ambiguous recoup/expense-cap stacking.
-- v1 scope: **standard Vs** + trust outputs; not all deal types.
-
----
-
-## Phase 3 — UX workflow design (2026-05-19)
-
-### Prompt
-
-> Design lightweight UX for AI-assisted settlement confidence review: sections, actions, AI outputs, warnings, overrides, empty/loading/error states. Mariana at 2am; no AI autopilot.
+> You are helping me analyze a PM case study codebase.
+>
+> I need you to act like a senior staff product engineer and help me identify:
+> - the current settlement workflow,
+> - data models,
+> - settlement calculation logic,
+> - unsupported deal types,
+> - UX pain points,
+> - trust and ambiguity issues,
+> - areas where structured data conflicts with notes or workflow reality.
+>
+> Focus especially on:
+> - settlement lifecycle,
+> - notes_freetext usage,
+> - Vs deals,
+> - recoup handling,
+> - dispute states,
+> - auditability.
+>
+> Help me understand:
+> 1. How settlement currently works
+> 2. Where the biggest operational pain exists
+> 3. Which workflows appear fragile or confusing
+> 4. What product opportunities exist around AI-assisted settlement interpretation
+>
+> Do not suggest broad rewrites.
+> Focus on high-leverage, narrow improvements.
 
 ### Outcome
 
-- `docs/ux-confidence-review-workflow.md` — full wireflow, mermaid, Coastal Spell demo path, component map.
+- `docs/settlement-system-analysis.md`
+- Informed slice scope (read-only settle UI, dual math engines, `calculation_json` unused)
 
 ---
 
-## Phase 4 — AI extraction logic (2026-05-19)
+## Prompt 2 — DB investigation
 
 ### Prompt
 
-> Implement lightweight AI deal interpretation: schema, parsing, confidence, discrepancies, explainable outputs. Rules-first; surface ambiguity.
+> Help me inspect this SQLite database for signs of operational messiness and settlement ambiguity.
+>
+> I want to identify:
+> - conflicting settlement states,
+> - disputed settlements with positive sign-offs,
+> - inconsistencies between structured deal fields and notes_freetext,
+> - unusual recoup patterns,
+> - recurring dispute causes,
+> - unsupported Vs deal structures,
+> - ambiguous clauses in notes.
+>
+> Generate SQL queries I can run to surface:
+> - contradictions,
+> - anomalies,
+> - workflow pain,
+> - trust issues.
+>
+> Then help me interpret what product problems these patterns reveal.
+>
+> THIS is where you find the gold for your memo.
 
 ### Outcome
 
-- `lib/ai/*` + `scripts/test-interpretation.ts` + `.env.example`
-- Fixed 85/15 split parsing (artist % not divide); basis net vs recoup "against gross"
-- Coastal: blocking `recoup_stacking_unset`, overall `low`
+- `docs/sql-inspection-queries.sql`
+- `scripts/audit-db.ts`, `scripts/run-sql-audit.ts`
+- `docs/database-audit.md` (BC1–BC12, Coastal Spell narrative)
+- Counts used in memo (537 settlements, 0 `calculation_json`, Daniel Hwang marketing recoup cluster, etc.)
 
 ---
 
-## Phase 4b — Settlement explanation (2026-05-19)
+## Prompt 3 — Product slice / thesis (Phase 2)
 
 ### Prompt
 
-> Design settlement explanation generator: TM-readable, transparent deductions, Vs resolution, disputed items, venue ops tone not ChatGPT.
+> Based on the repo and database findings, help me frame a strong Applied AI PM product thesis.
+>
+> My current direction:
+> AI-assisted settlement confidence review for independent music venues.
+>
+> I want help refining:
+> - the core user pain,
+> - why this problem matters operationally,
+> - why ambiguity and trust are bigger problems than calculation,
+> - why this is the highest-leverage slice,
+> - what I should intentionally NOT build,
+> - what success metrics matter.
+>
+> The final framing should sound like a thoughtful senior PM, not a generic AI feature pitch.
 
 ### Outcome
 
-- `lib/settlement/*`, template-driven markdown
-- Fixed expense-cap semantics for Mariana vs agent reads (Coastal Δ $720)
+- `docs/product-thesis.md` (locked slice)
+- `docs/5-day-plan.md`
 
 ---
 
-## Phase 5 — Settlement confidence UI (2026-05-19)
+## Prompt 4 — UX flow design (Phase 3)
 
-### Prompt (case study — Prompt 7 / Frontend Build)
+### Prompt
+
+> Help me design a lightweight but realistic UX workflow for an AI-assisted settlement confidence review feature.
+>
+> The user is:
+> Mariana Reyes, an indie venue booker settling shows at 2am.
+>
+> Constraints:
+> - Must feel operationally realistic
+> - Must reduce ambiguity and disputes
+> - Must preserve human control
+> - Must not feel like “AI autopilot”
+> - Should integrate naturally into existing settlement workflow
+>
+> The workflow should include:
+> - deal note interpretation,
+> - discrepancy detection,
+> - confidence indicators,
+> - settlement explanation,
+> - agent-facing summary generation.
+>
+> Help me define:
+> 1. UI sections
+> 2. User actions
+> 3. AI outputs
+> 4. Warning states
+> 5. Human override points
+> 6. Empty/loading/error states
+
+### Outcome
+
+- `docs/ux-confidence-review-workflow.md`
+- Blueprint for Phase 5 UI (readiness → interpretation → checks → walkthrough → agent summary)
+
+---
+
+## Prompt 5 — AI extraction logic (Phase 4)
+
+### Prompt
+
+> Help me implement a lightweight AI-powered deal interpretation layer.
+>
+> I want to:
+> - analyze notes_freetext,
+> - detect deal structure,
+> - extract guarantees,
+> - extract percentages,
+> - identify net vs gross,
+> - detect recoup clauses,
+> - identify ambiguous language,
+> - compare extracted values against structured fields.
+>
+> Requirements:
+> - prioritize interpretability over complexity,
+> - include confidence scoring,
+> - surface ambiguity instead of hiding it,
+> - avoid pretending AI is perfectly accurate.
+>
+> Help me:
+> 1. define extraction schema
+> 2. create parsing logic
+> 3. structure confidence scoring
+> 4. generate discrepancy warnings
+> 5. design explainable outputs
+
+### Outcome (code)
+
+- `lib/ai/*` — `types.ts`, `extractFromProse.ts`, `mergeCanon.ts`, `discrepancies.ts`, `confidence.ts`, `interpretDeal.ts`, `llmEnhance.ts`, `explain.ts`, `reviewState.ts`, `index.ts`
+- `scripts/test-interpretation.ts`, `.env.example`
+- `docs/ai-interpretation-layer.md`
+- Parser fixes: 85/15 artist share; net vs recoup “against gross”; Coastal `recoup_stacking_unset` blocking
+
+---
+
+## Prompt 6 — Settlement explanation generator (Phase 4b)
+
+### Prompt
+
+> Help me design a settlement explanation generator.
+>
+> The goal:
+> Generate a human-readable explanation of how the settlement payout was calculated.
+>
+> The explanation should:
+> - be understandable to tour managers,
+> - explain deductions transparently,
+> - show how the Vs comparison was resolved,
+> - identify disputed or ambiguous items,
+> - feel operationally trustworthy.
+>
+> Avoid marketing language.
+> Avoid sounding like ChatGPT.
+> Write like real venue operations software.
+
+### Outcome (code)
+
+- `lib/settlement/waterfall.ts`, `explainSettlement.ts`, `types.ts`, `index.ts`
+- `scripts/test-explanation.ts`
+- `docs/settlement-explanation.md`
+- Recoup stacking semantics (Coastal: ~$12,284.80 inside cap vs ~$11,564.80 before net, Δ $720)
+
+---
+
+## Prompt 7 — Frontend build (Phase 5)
+
+### Prompt
 
 > Help me implement a polished settlement confidence review panel in this Next.js application.
 >
-> Requirements: operational software aesthetic, clean information hierarchy, easy to scan at 2am, warnings visually distinct, confidence indicators subtle but visible, explanation sections readable, preserve existing settlement workflow.
+> Requirements:
+> - operational software aesthetic,
+> - clean information hierarchy,
+> - easy to scan at 2am,
+> - warnings visually distinct,
+> - confidence indicators subtle but visible,
+> - explanation sections readable,
+> - preserve existing settlement workflow.
 >
-> Components I likely need: discrepancy cards, extracted deal terms, confidence badges, settlement breakdown, generated summary panel, warning banners. Prioritize clarity over flashy UI.
+> Components I likely need:
+> - discrepancy cards,
+> - extracted deal terms,
+> - confidence badges,
+> - settlement breakdown,
+> - generated summary panel,
+> - warning banners.
+>
+> Prioritize clarity over flashy UI.
 
-### Outcome
+### Outcome (code)
 
-- `components/settlement/*` — `settlement-confidence-review.tsx`, `confidence-badge`, `warning-banner`, `discrepancy-cards`
-- `lib/ai/reviewState.ts` — client recompute on canon edits
-- Wired `app/shows/[id]/settle/page.tsx` — full panel for Vs; compact strip for flat/% gross
-- Coastal trust banner, dual recoup preview, confirm gate, walkthrough + agent copy
-- `scripts/db-reset.ts` — Windows-safe `npm run db:reset` (replaced `rm -f`)
+- `components/settlement/settlement-confidence-review.tsx`, `confidence-badge.tsx`, `warning-banner.tsx`, `discrepancy-cards.tsx`
+- `app/shows/[id]/settle/page.tsx` — `interpretDealSync` + panel (Vs full, flat/% gross compact)
+- Coastal trust banner; dual recoup preview; confirm gate; walkthrough + agent copy
+- `scripts/db-reset.ts`, `package.json` `db:reset` (Windows)
+- `db/index.ts` — absolute DB path
 
-### Follow-up prompts (same session)
+### Human decisions (not from a prompt)
 
-> Explain the entire system again like I'm 5 — what each part does.
-
-> Yes — click-by-click walkthrough for Coastal Spell (Loom prep).
-
-> Did we solve what the problem wanted? (Senior PM / interview readiness review.)
-
-> PHASE 6 — Help me draft a 1–2 page PM memo (Prompt 8). Slice: AI-assisted settlement confidence review. Cover problem, slice choice, DB insights, philosophy, design, tradeoffs, cuts, AI risks, metrics, next. Tone: operational, no buzzwords.
-
-> PHASE 7 — Help me structure a 5–10 minute Loom (Prompt 9). Problem → slice → demo → cuts → AI judgment → next.
-
-> Loom prep — do I need to talk? What to point at / what to say (user unfamiliar with UI).
-
-> User shared Coastal settle screenshots — validated UI; corrected recoup labels (inside cap ≈ $12,285, before net ≈ $11,565).
-
-> Shorter Loom script (single flow; user reads aloud, doesn’t want to memorize).
-
-> What do I need to submit? (repo + memo export + Loom.)
-
-### Course corrections (human + AI)
-
-- Recoup stacking labels in coaching copy were wrong once; UI amounts are source of truth.
-- 404 on `/settle` — stale duplicate `npm run dev` / `.next` cache; fixed `db/index.ts` absolute DB path.
+- LLM proposes canon; code calculates after confirm
+- Walkthrough locked until interpretation confirmed
 
 ---
 
-## Phase 6 — Memo (2026-05-19)
+## Prompt index
 
-### Prompt
-
-> Prompt 8 — Memo Drafting (full requirements in Phase 5 follow-up above).
-
-### Outcome
-
-- `docs/memo.md` — submission-ready PM memo (export to PDF/Notion for hiring contact)
-
----
-
-## Phase 7 — Loom script (2026-05-19)
-
-### Prompt
-
-> Prompt 9 — Loom Script: 5–10 min, problem / slice / demo / cuts / AI realism / next. Concise, product-oriented, not over-rehearsed.
-
-### Outcome
-
-- `docs/loom-script.md` — timed beats, Coastal URL, pre-flight checklist
-- Iterated to ultra-short glance-card script for voiceover (~3 min)
-
-### Note
-
-User asked some coaching turns **off the record** (not logged verbatim) — ELI5 system explain, submission anxiety, voice-on-video preference.
-
----
-
-## Template for future entries
-
-```markdown
-## Day N — Title (YYYY-MM-DD)
-
-### Goal
-...
-
-### Prompt(s)
-\`\`\`
-(paste exact prompt)
-\`\`\`
-
-### Model / tool
-Claude Sonnet 4.x / Cursor Agent / etc.
-
-### Output summary
-- What shipped
-- What failed
-- What we changed manually
-
-### Follow-ups
-- [ ] ...
-```
+| # | Phase | Primary artifacts |
+|---|--------|-------------------|
+| 1 | Understand repo | `settlement-system-analysis.md` |
+| 2 | DB investigation | `sql-inspection-queries.sql`, `database-audit.md`, audit scripts |
+| 3 | Product thesis | `product-thesis.md`, `5-day-plan.md` |
+| 4 | UX design | `ux-confidence-review-workflow.md` |
+| 5 | AI logic | `lib/ai/*` |
+| 6 | Explanation | `lib/settlement/*` |
+| 7 | UI | `components/settlement/*`, settle page |
